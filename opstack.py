@@ -1,7 +1,7 @@
 import openstack
 from openstack.config import loader
 from openstack import utils
-
+import time 
 
 def read_identity():
   identity = open('identity.txt')
@@ -15,8 +15,6 @@ def read_identity():
       if len(line)==2:
           identity_dict[line[0].lstrip(' ')]=line[-1].lstrip(' ').replace('\n','')
   
-print (read_identity())
-
 def create_connection():
     return openstack.connect(
     auth=read_identity(),
@@ -24,24 +22,29 @@ def create_connection():
     interface =  "public",
     identity_api_version='3'
     )
-print (dict(
-      auth_url='http://vlad-mgmt.ncsa.illinois.edu:5000/v3/',
-      username = "rc5",
-      password = '8473ccead8bb92673865',
-      project_id =  '4b6b08facc2e45c896ebb00e69e4774e',
-      project_name = "DL",
-      user_domain_name = "Default"))
 conn = create_connection() 
-much = conn.create_server('testserver4',
-                    image='d8a9f636-5776-4c8f-94f0-ab0a19113762',
-                    flavor = 'm1.small',
-                    key_name = 'ruiyanghp',
-                    userdata = '#!/bin/sh\n' 
-                          +'apt-get update \n ' +
-                          'echo heyhye'+
-                          'apt-get install -y python3-pip \n'+
-                          'pip3 install torch \n' +
-                          'pip3 install torchvision\n'
-                          'pip3 install scipy'
-                    )
+
+def create_server(connection):
+    much = connection.create_server('testserver4',
+                        image='d8a9f636-5776-4c8f-94f0-ab0a19113762',
+                        flavor = 'm1.small',
+                        key_name = 'ruiyanghp',
+                        userdata = '#!/bin/sh\n' 
+                              +'apt-get update \n ' +
+                              'echo heyhye\n'+
+                              'apt-get install -y python3-pip \n'+
+                              'apt-get install git\n'+
+                              'git clone https://github.com/dylanrchen/openstack_torchmodel /home/ubuntu/openstack_torchmodel \n'+
+                              'pip3 install torch \n' +
+                              'pip3 install torchvision\n'
+                              'pip3 install scipy'
+                        )
+    ips = connection.available_floating_ip()
+    time.sleep(10)
+    conn.add_ip_list(much,ips['floating_ip_address'])
+    return much,ips['floating_ip_address']
+    
+much = create_server(conn)
+conn.delete_server('testserver4')
+
 # print(conn.available_floating_ip())
